@@ -2,45 +2,53 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict
 import json
-from fastapi import FastAPI
 
 app = FastAPI()
 
 class Aluno(BaseModel):
-    nome:str
-    id:int
-    notas: Dict[str,float]
+    nome: str
+    id: int
+    notas: Dict[str, float]
 
-alunos = []
+def load_data(file="data.json"):
+    try:
+        with open(file, "r") as f:
+            return [Aluno(**aluno) for aluno in json.load(f)]
+    except FileNotFoundError:
+        return []
+
+def save_data(alunos, file="data.json"):
+    with open(file, "w") as f:
+        json.dump([aluno.dict() for aluno in alunos], f)
+
+alunos = load_data()
 
 @app.post("/aluno/")
 def adicionar_aluno(aluno: Aluno):
-    for nota in aluno.notas.values():
-        if nota <0 or nota > 10:
-            raise HTTPException(status_code=69, detail="Nota invalida, favor inserir uma nota entre 0 e 10")
-    aluno.notas ={materia: round(nota,1) for materia, nota in aluno.notas.items()}
-    alunos.append(aluno)
-    return{"message": "Aluno adicionado"}
+    if any(a.id == aluno.id for a in alunos):
+        raise HTTPException(status_code=400, detail="Id já existe")
 
-@app.get("/alunos/geral")
+    if any(nota < 0 or nota > 10 for nota in aluno.notas.values()):
+        raise HTTPException(status_code=400, detail="Nota inválida, favor inserir uma nota entre 0 e 10")   
+
+    aluno.notas = {materia: round(nota, 1) for materia, nota in aluno.notas.items()}
+    alunos.append(aluno)
+    save_data(alunos)
+    return {"message": " Deu certo"}
+
+@app.get("/alunos/")
 def get_alunos():
-    if not alunos:
-        raise HTTPException(status_code=666,detail="Nenhum aluno cadastrado")
-    return alunos
-    
+    return alunos or HTTPException(status_code=404, detail="Nenhum aluno cadastrado")
+
 @app.get("/aluno/{id}")
-def get_aluno_by_nota(id:int):
-    for aluno in alunos:
-        if aluno.id == id:
-            return aluno
-    raise HTTPException(status_code=420, detail="Aluno não encontrado")
+def get_aluno(id: int):
+    aluno = next((a for a in alunos if a.id == id), None)
+    return aluno or HTTPException(status_code=404, detail="Aluno não encontrado")
 
 @app.get("/materia/{materia}")
-def get_nota_by_materia(materia:str):
-    notas_materia = [(aluno.nome,aluno.notas.get(materia)) for aluno in alunos if materia in aluno.notas]
-    return notas_materia
-
-json_data = json.dumps([aluno.dict() for aluno in alunos])
-
-with open('data/alunos.json', 'w') as f:
-    f.write(json_data)
+def get_nota_by_materia(materia: str):
+    notas_materia = [(aluno.nome, aluno.notas.get(materia)) for aluno in alunos if materia in aluno.notas]
+    if not notas_materia:
+        raise HTTPException(status_code=404, detail="Matéria não encontrada")
+    notas_materia.sort(key=lambda x: x[1])
+    return [{"nome": nome, "materia": materia, "nota": nota} for nome, nota in notas_materia]
