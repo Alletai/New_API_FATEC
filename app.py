@@ -6,9 +6,30 @@ import json
 app = FastAPI()
 
 class Aluno(BaseModel):
+
     nome: str
     id: int
     notas: Dict[str, float]
+
+#Segue Dict das frases e quantidades de vezes que foram ditas
+#logo depois que terminei o BaseModel
+#
+#  frase : foi dita  
+# 
+# Frase: [
+#   {
+#      "Seja o que Deus quiser" : 1947,
+#      "Eu não sei o que estou fazendo" : 17476,
+#      "Deu erro e eu não seri porquê" : 32549,
+#      "Nem sei o que aconteceu, mas deu certo" : 73545,
+#      "Odeio python" : 27593,
+#      "Jesus é maravilhoso" : 7374,
+#      "Credo, que negocio feio" : 265,
+#      "Meu Deus, me leva" : 35,
+#      "Dezani maldito, esse negocio é mt dificil" : 293765456
+#   }
+# ] 
+#
 
 def load_data(file="data.json"):
     try:
